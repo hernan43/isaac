@@ -19,6 +19,7 @@ module Isaac
   class Application
     def initialize #:nodoc:
       @events = Hash.new {|k,v| k[v] = []}
+      @channels = {}
     end
 
     # This is plain stupid. Might be useful for logging or something later on.
@@ -118,14 +119,39 @@ module Isaac
         nick, userhost, channel, message = $1, $2, $3, $4
         type = channel.match(/^#/) ? :channel : :private
         if event = event(type, message)
-          @queue << event.invoke(:nick => nick, :userhost => userhost, :channel => channel, :message => message)
+          @queue << event.invoke(:nick => nick, :userhost => userhost, :channel => channel, :message => message, :channels => @channels)
         end
       when /^:\S+ ([4-5]\d\d) \S+ (\S+)/
         error = $1
         nick = channel = $2
         if event = event(:error, error.to_i)
-          @queue << event.invoke(:nick => nick, :channel => channel)
+          @queue << event.invoke(:nick => nick, :channel => channel, :channels => @channels)
         end
+      when /^:(\S+)!\S+ JOIN :?(\S+)/
+        nick, channel = $1, $2
+        p "joined: #{channel}"
+        if nick == @config.nick
+          @channels[channel] ||= []
+        else
+          @channels[channel] << nick unless @channels[channel].include?(nick)
+        end
+      when /^:(\S+)!\S+ PART :?(\S+)/
+        nick, channel = $1, $2
+        if nick == @config.nick
+          @channels.delete(channel) 
+        else
+          @channels[channel].delete(nick)
+        end
+      when /^:\S+ KICK (\S+) (\S+)/
+        channel, nick = $1, $2
+        if nick == @config.nick
+          @channels.delete(channel)
+        else
+          @channels[channel].delete(nick)
+        end
+      when /^:\S+ 353 \S+ \S (\S+) :?(.*)/
+        channel, nicks = $1, $2
+        @channels[channel] = nicks.split.map { |nick| nick.sub(/^(\+|@)/,'') }
       when /^PING (\S+)/
         #TODO not sure this is correct. Damned RFC.
         @queue << "PONG #{$1}" 
@@ -193,7 +219,7 @@ module Isaac
   end
 
   class EventContext
-    attr_accessor :nick, :userhost, :channel, :message, :match, :commands
+    attr_accessor :nick, :userhost, :channel, :message, :match, :commands, :channels
     def initialize(args = {})
       args.each {|k,v| instance_variable_set("@#{k}",v)}
       @commands = []

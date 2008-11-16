@@ -2,3 +2,4 @@
 - mode() for setting nick/channel modes
 - a bunch of IRC commands. invite, ban etc.
 - More specs
+- Keep track of bots nick
