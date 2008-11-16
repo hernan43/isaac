@@ -17,6 +17,8 @@ module Isaac
 
   # These are top level methods you use to construct your bot.
   class Application
+    attr_reader :channels
+
     def initialize #:nodoc:
       @events = Hash.new {|k,v| k[v] = []}
       @channels = {}
@@ -105,6 +107,8 @@ module Isaac
       rescue Timeout::Error => e
         puts "Timeout: #{e}. Reconnecting."
         connect
+      rescue => e
+        puts "Error! #{e}"
       end
     end
 
@@ -119,13 +123,13 @@ module Isaac
         nick, userhost, channel, message = $1, $2, $3, $4
         type = channel.match(/^#/) ? :channel : :private
         if event = event(type, message)
-          @queue << event.invoke(:nick => nick, :userhost => userhost, :channel => channel, :message => message, :channels => @channels)
+          @queue << event.invoke(:nick => nick, :userhost => userhost, :channel => channel, :message => message)
         end
       when /^:\S+ ([4-5]\d\d) \S+ (\S+)/
         error = $1
         nick = channel = $2
         if event = event(:error, error.to_i)
-          @queue << event.invoke(:nick => nick, :channel => channel, :channels => @channels)
+          @queue << event.invoke(:nick => nick, :channel => channel)
         end
       when /^:(\S+)!\S+ JOIN :?(\S+)/
         nick, channel = $1, $2
@@ -223,6 +227,7 @@ module Isaac
     def initialize(args = {})
       args.each {|k,v| instance_variable_set("@#{k}",v)}
       @commands = []
+      @channels = Isaac.app.channels
     end
 
     # Send a raw IRC message.
