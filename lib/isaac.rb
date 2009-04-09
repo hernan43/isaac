@@ -1,9 +1,10 @@
 require 'socket'
+require 'openssl'
 
 module Isaac
   VERSION = '0.2.1'
 
-  Config = Struct.new(:server, :port, :password, :nick, :realname, :version, :environment, :verbose)
+  Config = Struct.new(:server, :port, :password, :use_ssl, :nick, :realname, :version, :environment, :verbose)
 
   def self.bot
     @bot ||= Bot.new
@@ -15,7 +16,7 @@ module Isaac
 
     def initialize(&b)
       @events = {}
-      @config = Config.new("localhost", 6667, nil, "isaac", "Isaac", 'isaac', :production, false)
+      @config = Config.new("localhost", 6667, nil, false, "isaac", "Isaac", 'isaac', :production, false)
 
       instance_eval(&b) if block_given?
     end
@@ -104,11 +105,22 @@ module Isaac
     end
 
     def connect
-      @socket = TCPSocket.open(@config.server, @config.port)
+      # create new TCPSocket for our connection to the IRC server
+      @socket = TCPSocket.new(@config.server, @config.port)
+      # if the user has opted to use SSL
+      if @config.use_ssl
+        # convert the socket to an SSL encrypted socket
+        @socket = OpenSSL::SSL::SSLSocket.new(@socket)
+      end
+      # connect to the server regardless of SSL or non-SSL
+      @socket.connect
+
       @queue = Queue.new(@socket, @bot.config.server)
+
       message "PASS #{@config.password}" if @config.password
       message "NICK #{@config.nick}"
       message "USER #{@config.nick} 0 * :#{@config.realname}"
+
       @queue.lock
 
       while line = @socket.gets
