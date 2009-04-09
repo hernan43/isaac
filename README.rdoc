@@ -12,6 +12,8 @@ An Isaac-bot needs a few basics:
     c.nick    = "AwesomeBot"
     c.server  = "irc.freenode.net"
     c.port    = 6667
+    # if SSL is required set this to true
+    c.use_ssl = false
   end
 That's it. Run <tt>ruby bot.rb</tt> and it will connect to the specified server.
 
