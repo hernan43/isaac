@@ -105,9 +105,9 @@ module Isaac
     end
 
     def connect
+      @socket = TCPSocket.new(@config.server, @config.port)
       # if the user has opted to use SSL
       # convert the socket to an SSL encrypted socket
-      @socket = TCPSocket.new(@config.server, @config.port)
       if @config.use_ssl
         @socket = OpenSSL::SSL::SSLSocket.new(@socket)
         @socket.connect
