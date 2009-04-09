@@ -105,13 +105,16 @@ module Isaac
     end
 
     def connect
-      # create new TCPSocket for our connection to the IRC server
-      @socket = TCPSocket.new(@config.server, @config.port)
       # if the user has opted to use SSL
       # convert the socket to an SSL encrypted socket
-      @socket = OpenSSL::SSL::SSLSocket.new(@socket) if @config.use_ssl
-      # connect to the server regardless of SSL or non-SSL
-      @socket.connect
+      if @config.use_ssl
+        @socket = TCPSocket.new(@config.server, @config.port)
+        @socket = OpenSSL::SSL::SSLSocket.new(@socket) if @config.use_ssl
+        @socket.connect
+      else
+        # create new TCPSocket for our connection to the IRC server
+        @socket = TCPSocket.open(@config.server, @config.port)
+      end
 
       @queue = Queue.new(@socket, @bot.config.server)
 
